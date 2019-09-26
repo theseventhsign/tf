@@ -1,3 +1,67 @@
+// ============================================================================
+//  
+//    tf_image_statistics v0.1a - Image stats by @twelvefifteen on GitHub
+// 
+// USAGE
+// 
+//    The user-facing functions can be found in the bottommost code section of
+//    this file.
+// 
+//    int HistogramWidth;
+//    int HistogramHeight;
+//    void* Histogram = TFISHistogram(ImageAddress, 256, 512,
+//                                    &HistogramWidth, &HistogramHeight);
+//    // This call returns a histogram for the 256x512 image contained at 
+//    // ImageAddress.
+//    // HistogramWidth and HistogramHeight are unconditionally set to 200 and
+//    // 256, respectively, so the out parameters are merely reminders.
+//    // There is a similar histogram function, TFISBrightnessHistogram(), for
+//    // graphing the luminances of each texel.
+//    TFISFree(Histogram);
+// 
+//    float Score = TFISCompare(Image0Address, Image0Width, Image0Height,
+//                              Image1Address, Image1Width, Image1Height);
+//    // This call runs an RMSE comparison on two images, provided their 
+//    // dimensions are equal. The closer to zero the result is, the more alike
+//    // the images are.
+// 
+//    unsigned int OutTriplet;
+//    TFISMeanTriplet(ImageAddress, 256, 512, &OutTriplet);
+//    // This call computes the sRGB mean of the 256x512 image contained at
+//    // ImageAddress. The output gets stored stored in OutTriplet as an RGB 
+//    // triplet. If there's ever need for a linear RGB version, I'd be happy
+//    // to implement it.
+//    float OutR, OutG, OutB;
+//    TFISMeanTriplet(ImageAddress, 256, 512, &OutR, &OutG, &OutB);
+//    // This call also computes the sRGB mean of an image, but outputs the
+//    // results as a set of floats, one for each component. These floats are
+//    // on the range of [0.0f, 1.0f].
+// 
+//    unsigned int OutTriplet;
+//    TFISModeTriplet(ImageAddress, 256, 512, 0.05f, &OutTriplet);
+//    // This call computes the mode of the 256x512 image at ImageAddress and
+//    // outputs it to OutTriplet as an RGB triplet. The "0.05f" refers to the
+//    // percent of the source image that gets sampled, as things can get slow
+//    // without this optimization. Similarly, sampled texels have their bottom
+//    // two bits masked to provide more reasonable results.
+//    // Like the mean function, there's also a floating-point version of this
+//    // function.
+// 
+// INTERNALS
+// 
+//    All raster data passed to this library must contain four components and
+//    be RGBA ordered.
+// 
+//    Allocations are made using the TFIS_MALLOC macro, which defaults to
+//    malloc(). You can, however, #define this macro to use your own allocation
+//    scheme. The same goes for TFIS_FREE, which defaults to free().
+// 
+// LICENSE
+// 
+//    The license for this library can be found at the bottom of this file.
+// 
+// ============================================================================
+
 #ifndef TF_IMAGE_STATISTICS_H
 #define TF_IMAGE_STATISTICS_H
 
@@ -74,7 +138,7 @@ TFIS_V4(tfis_f32 X, tfis_f32 Y, tfis_f32 Z, tfis_f32 W)
 }
 
 // 
-// NOTE(gus): Memory operations
+// NOTE: Memory operations
 // 
 
 #ifndef TFIS_MALLOC
@@ -123,7 +187,7 @@ TFIS_ZeroSize_(void* Ptr, tfis_umm Size)
 }
 
 // 
-// NOTE(gus): RNG
+// NOTE: RNG
 // 
 
 static tfis_random_series
@@ -144,7 +208,7 @@ TFIS_SeedSeries(tfis_u32 Seed)
 static tfis_u32
 TFIS_GetRandom(tfis_random_series* Series)
 {
-    // NOTE(gus): Xorshift implementation from en.wikipedia.org/wiki/Xorshift
+    // NOTE: Xorshift implementation from en.wikipedia.org/wiki/Xorshift
     
     tfis_u32 Result = Series->State;
     Result ^= (Result << 13);
@@ -159,7 +223,7 @@ TFIS_GetRandom(tfis_random_series* Series)
 static tfis_u32
 TFIS_RandomU32Between(tfis_random_series* Series, tfis_u32 Min, tfis_u32 Max)
 {
-    // NOTE(gus): This function is inclusive of both Min and Max
+    // NOTE: This function is inclusive of both Min and Max
     
     tfis_u32 Range = (Max - Min);
     tfis_u32 Random = TFIS_GetRandom(Series);
@@ -169,7 +233,7 @@ TFIS_RandomU32Between(tfis_random_series* Series, tfis_u32 Min, tfis_u32 Max)
 }
 
 // 
-// NOTE(gus): Scalar operations
+// NOTE: Scalar operations
 // 
 
 static tfis_f32
@@ -291,7 +355,7 @@ TFIS_LinearTosRGB(tfis_f32 A)
 }
 
 // 
-// NOTE(gus): v3 operations
+// NOTE: v3 operations
 // 
 
 static tfis_f32
@@ -325,7 +389,7 @@ TFIS_PackTriplet(tfis_v3 A)
 }
 
 // 
-// NOTE(gus): v4 operations
+// NOTE: v4 operations
 // 
 
 static tfis_v4
@@ -364,7 +428,7 @@ TFIS_PackRGBA(tfis_v4 A)
 }
 
 // 
-// NOTE(gus): Image operations
+// NOTE: Image operations
 // 
 
 static tfis_v3
@@ -408,7 +472,6 @@ TFIS_ComputeMeanV3(void* Address, int Width, int Height)
 static tfis_u32
 TFIS_HashColor(tfis_u32 C)
 {
-    // @Refactor(gus): Better hash function please
     tfis_u32 Result = C;
     Result = (~Result + (Result << 15));
     Result = (Result ^ (Result >> 12));
@@ -570,7 +633,7 @@ TFIS_Grayscale(void* Address, int Width, int Height)
 }
 
 // 
-// NOTE(gus): User-facing API
+// NOTE: User-facing API
 // 
 
 static void*
@@ -850,25 +913,25 @@ TFISFree(void* Address)
 #endif
 
 /*
-MIT License
-
-Copyright (c) 2019 Gustavo Velasquez (@twelvefifteen on GitHub)
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this softwareand associated documentation files(the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and /or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions :
-
-The above copyright noticeand this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+	MIT License
+	
+	Copyright (c) 2019 Gustavo Velasquez (@twelvefifteen on GitHub)
+	
+	Permission is hereby granted, free of charge, to any person obtaining a copy
+	of this softwareand associated documentation files(the "Software"), to deal
+	in the Software without restriction, including without limitation the rights
+	to use, copy, modify, merge, publish, distribute, sublicense, and /or sell
+	copies of the Software, and to permit persons to whom the Software is
+	furnished to do so, subject to the following conditions:
+	
+	The above copyright noticeand this permission notice shall be included in all
+	copies or substantial portions of the Software.
+	
+	THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+	IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+	FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.IN NO EVENT SHALL THE
+	AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+	LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+	OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+	SOFTWARE.
 */

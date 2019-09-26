@@ -1,3 +1,53 @@
+// ============================================================================
+//  
+//    tf_image_transform v0.1a - Image transforms by @twelvefifteen on GitHub
+// 
+// USAGE 
+// 
+//    The user-facing functions can be found in the bottommost code section of
+//    this file.
+//
+//    void* ResizedAddress = TFITResize(ImageAddress, 256, 512,
+//                                      128, 256,
+//                                      TFITFilterType_Bilinear);
+//    // This call resizes 256x512 image at ImageAddress to 128x256 and returns
+//    // the raster.
+//    // Resizing here uses bilinear filtering. An explanation of the available
+//    // available filters can be found in the FILTERING DETAILS section below.
+//    TFITFree(ResizedAddress);
+// 
+//    void* ClockwiseAddress = TFITRotate(ImageAddress, 256, 512,
+//                                        TFITRotationDir_Clockwise);
+//    // This call rotates the 256x512 image at ImageAddress clockwise.
+//    // The dimensions of the rotated image will always be the reverse of the
+//    // old dimensions (512x256 in this example).
+//    // Counterclockwise rotation is also supported.
+//    TFITFree(ClockwiseAddress);
+// 
+// INTERNALS
+//    
+//    All raster data passed to this library must contain four components and
+//    be RGBA ordered.
+// 
+//    Allocations are made using the TFIT_MALLOC macro, which defaults to
+//    malloc(). You can, however, #define this macro to use your own allocation
+//    scheme. The same goes for TFIT_FREE, which defaults to free().
+// 
+// FILTERING DETAILS
+// 
+//    There are three filtering options for the resize function. Smoothness of
+//    the resized images improves from nearest neighbor to bilinear to bicubic
+//    filtering. However, the cost of computation also increases in this order.
+// 
+//    This library currently only supports Catmull-Rom splines for bicubic
+//    filtering.
+//  
+// LICENSE
+// 
+//    The license for this library can be found at the bottom of this file.
+// 
+// ============================================================================
+
 #ifndef TF_IMAGE_TRANSFORM_H
 #define TF_IMAGE_TRANSFORM_H
 
@@ -59,14 +109,14 @@ TFIT_MakeBitmap(void* Address, int Width, int Height)
 // NOTE: Memory management
 // 
 
-#ifndef TFIT_ALLOCATE
+#ifndef TFIT_MALLOC
 #include <stdio.h>
-#define TFIT_ALLOCATE(Size) malloc((Size))
+#define TFIT_MALLOC(Size) malloc((Size))
 #endif
 static void*
 TFIT_Allocate(tfit_umm Size)
 {
-    void* Result = TFIT_ALLOCATE(Size);
+    void* Result = TFIT_MALLOC(Size);
     
     return(Result);
 }
@@ -643,25 +693,25 @@ TFITFree(void* Address)
 #endif
 
 /*
-MIT License
-
-Copyright (c) 2019 Gustavo Velasquez (@twelvefifteen on GitHub)
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this softwareand associated documentation files(the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and /or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions :
-
-The above copyright noticeand this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+	MIT License
+	
+	Copyright (c) 2019 Gustavo Velasquez (@twelvefifteen on GitHub)
+	
+	Permission is hereby granted, free of charge, to any person obtaining a copy
+	of this softwareand associated documentation files(the "Software"), to deal
+	in the Software without restriction, including without limitation the rights
+	to use, copy, modify, merge, publish, distribute, sublicense, and /or sell
+	copies of the Software, and to permit persons to whom the Software is
+	furnished to do so, subject to the following conditions:
+	
+	The above copyright noticeand this permission notice shall be included in all
+	copies or substantial portions of the Software.
+	
+	THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+	IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+	FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.IN NO EVENT SHALL THE
+	AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+	LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+	OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+	SOFTWARE.
 */

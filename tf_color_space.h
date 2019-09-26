@@ -1,3 +1,48 @@
+// ============================================================================
+//  
+//    tf_color_space v0.1a - Color interpolator by @twelvefifteen on GitHub
+// 
+// USAGE
+// 
+//    The user-facing functions can be found in the bottommost code section of
+//    this file.
+//    
+//    float OutR, OutG, OutB;
+//    TFCSInterpolateFloat(1.0f, 0.0f, 0.0f,
+//                         0.5f,
+//                         0.0f, 0.0f, 1.0f,
+//                         TFCSColorSpace_HSV,
+//                         &OutR, &OutG, &OutB);
+//    // This call will interpolate halfway between red and blue in HSV.
+//    // Colors for this call are represented using floating-point numbers on 
+//    // the range [0.0f, 1.0f].
+//    // The result can be found in the out parameters OutR, OutG, OutB.
+// 
+//    unsigned int Triplet;
+//    TFCSInterpolateTriplet(0xFF0000, 0.5f, 0x0000FF,
+//                           TFCSColorSpace_HSV,
+//                           &Triplet);
+//    // This call also interpolates halfway between red and blue in HSV.
+//    // Colors for the call are represented with RGB triplets.
+//    // The result can be found in the out parameter Triplet.
+// 
+// COLOR SPACES
+// 
+//    The set of supported color spaces are defined in tfcs_color_space below.
+// 
+//    Some color spaces (HSL, HSV, and CIELCh) use hue, which represents the
+//    azimuth along what is effectively a color wheel. As a result, there are
+//    two paths along which hue can be interpolated: a short one and a long
+//    one. This library interpolates along the short path by default, but the
+//    long path can be used instead by choosing the "reverse" flavors of these
+//    color spaces.
+// 
+// LICENSE
+// 
+//    The license for this library can be found at the bottom of this file.
+// 
+// ============================================================================
+
 #ifndef TF_COLOR_SPACE_H
 #define TF_COLOR_SPACE_H
 
@@ -971,25 +1016,25 @@ TFCSInterpolateTriplet(tfcs_u32 TripletA, tfcs_f32 t, tfcs_u32 TripletB,
 #endif
 
 /*
-MIT License
-
-Copyright (c) 2019 Gustavo Velasquez (@twelvefifteen on GitHub)
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this softwareand associated documentation files(the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and /or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions :
-
-The above copyright noticeand this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+	MIT License
+	
+	Copyright (c) 2019 Gustavo Velasquez (@twelvefifteen on GitHub)
+	
+	Permission is hereby granted, free of charge, to any person obtaining a copy
+	of this softwareand associated documentation files(the "Software"), to deal
+	in the Software without restriction, including without limitation the rights
+	to use, copy, modify, merge, publish, distribute, sublicense, and /or sell
+	copies of the Software, and to permit persons to whom the Software is
+	furnished to do so, subject to the following conditions:
+	
+	The above copyright noticeand this permission notice shall be included in all
+	copies or substantial portions of the Software.
+	
+	THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+	IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+	FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.IN NO EVENT SHALL THE
+	AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+	LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+	OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+	SOFTWARE.
 */
