@@ -112,7 +112,7 @@ TFIS_CopyMemory(void* Dest, void* Source, tfis_umm Size)
 
 #define TFIS_ZERO_ARRAY(Ptr, Count, type) TFIS_ZeroSize_((Ptr), sizeof(type)*(Count))
 #define TFIS_ZERO_STRUCT(Instance, type) TFIS_ZeroSize_(&(Instance), sizeof(type))
-inline void
+static void
 TFIS_ZeroSize_(void* Ptr, tfis_umm Size)
 {
     tfis_u8* BytePtr = (tfis_u8*)Ptr;
