@@ -519,7 +519,7 @@ TFIS_ComputeModeTriplet(void* Address, int Width, int Height, tfis_f32 SamplePer
     
     SamplePercent = TFIS_Clamp01(SamplePercent);
     
-    tfis_color_table* Table = (tfis_color_table*)malloc(sizeof(tfis_color_table));
+    tfis_color_table* Table = (tfis_color_table*)TFIS_Allocate(sizeof(tfis_color_table));
     TFIS_ZERO_STRUCT(*Table, tfis_color_table);
     
     int SampleCount = TFIS_RoundToInt((Width*Height)*SamplePercent);
