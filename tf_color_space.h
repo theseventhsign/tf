@@ -33,10 +33,10 @@
 // 
 //    Some color spaces (HSL, HSV, and CIELCh) use hue, which represents the
 //    azimuth around what is effectively a color wheel. As a result, there are
-//    two paths along which hue can be interpolated: a short one and a long
-//    one. This library interpolates along the short path by default, but the
-//    long path can be used instead by choosing the "reverse" flavors of the
-//    color space enums.
+//    two paths along which hue can be interpolated, each of which passes 
+//    through different colors. This library interpolates along the shorter
+//    path by default, but the longer path can be used instead by choosing the
+//    "reverse" flavors of the color space enums.
 // 
 // LICENSE
 // 
@@ -54,7 +54,7 @@
 #ifdef _MSC_VER
 typedef unsigned int tfcs_u32;
 #else
-#include <stdint.h>
+#include <stdint.h> // uint32_t
 typedef uint32_t tfcs_u32;
 #endif
 typedef float tfcs_f32;

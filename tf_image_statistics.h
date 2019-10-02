@@ -50,8 +50,8 @@
 // INTERNALS
 // 
 //    All raster data passed to this library must contain four components and
-//    be RGBA ordered. Pitch refers to the number of bytes between one row of
-//    an image to the next. This is oftentimes width*4(bytes per pixel), but
+//    be RGBA ordered. Pitch refers to the number of bytes between rows of 
+//    pixel data in an image. This is oftentimes width*4(bytes per pixel), but
 //    not always.
 // 
 //    Allocations are made using the TFIS_MALLOC macro, which defaults to
@@ -740,9 +740,9 @@ TFISCompare(void* AAddress, int AWidth, int AHeight, tfis_umm APitch,
                 tfis_v4 BTexelV4 = TFIS_UnpackRGBA(BTexel);
                 BTexelV4 = TFIS_sRGBToLinearV4(BTexelV4);
                 
-                tfis_f32 SquareDiffr = TFIS_Square(ATexelV4.x - BTexelV4.x);
-                tfis_f32 SquareDiffg = TFIS_Square(ATexelV4.y - BTexelV4.y);
-                tfis_f32 SquareDiffb = TFIS_Square(ATexelV4.z - BTexelV4.z);
+                tfis_f32 SquareDiffr = TFIS_Square((ATexelV4.w*ATexelV4.x) - (BTexelV4.w*BTexelV4.x));
+                tfis_f32 SquareDiffg = TFIS_Square((ATexelV4.w*ATexelV4.y) - (BTexelV4.w*BTexelV4.y));
+                tfis_f32 SquareDiffb = TFIS_Square((ATexelV4.w*ATexelV4.z) - (BTexelV4.w*BTexelV4.z));
                 tfis_f32 SquareDiffa = TFIS_Square(ATexelV4.w - BTexelV4.w);
                 
                 SquaredError += SquareDiffr;
@@ -920,25 +920,25 @@ TFISFree(void* Address)
 #endif
 
 /*
- MIT License
- 
- Copyright (c) 2019 Gustavo Velasquez (@twelvefifteen on GitHub)
- 
- Permission is hereby granted, free of charge, to any person obtaining a copy
- of this softwareand associated documentation files(the "Software"), to deal
- in the Software without restriction, including without limitation the rights
- to use, copy, modify, merge, publish, distribute, sublicense, and /or sell
- copies of the Software, and to permit persons to whom the Software is
- furnished to do so, subject to the following conditions:
- 
- The above copyright noticeand this permission notice shall be included in all
- copies or substantial portions of the Software.
- 
- THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.IN NO EVENT SHALL THE
- AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- SOFTWARE.
+MIT License
+
+Copyright (c) 2019 Gustavo Velasquez (@twelvefifteen on GitHub)
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this softwareand associated documentation files(the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and /or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright noticeand this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
 */

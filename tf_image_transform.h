@@ -1,22 +1,22 @@
 // ============================================================================
 //  
-//    tf_image_transform v0.1a - Image transforms by @twelvefifteen on GitHub
+//    tf_image_transform v0.1b - Image transforms by @twelvefifteen on GitHub
 // 
 // USAGE 
 // 
 //    The user-facing functions can be found in the bottommost code section of
 //    this file.
 //
-//    void* ResizedAddress = TFITResize(ImageAddress, 256, 512,
+//    void* ResizedAddress = TFITResize(ImageAddress, 256, 512, (256*4),
 //                                      128, 256,
 //                                      TFITFilterType_Bilinear);
 //    // This call resizes 256x512 image at ImageAddress to 128x256 and returns
 //    // the raster.
 //    // Resizing here uses bilinear filtering. An explanation of the available
-//    // available filters can be found in the FILTERING DETAILS section below.
+//    // available filters can be found under FILTERING DETAILS below.
 //    TFITFree(ResizedAddress);
 // 
-//    void* ClockwiseAddress = TFITRotate(ImageAddress, 256, 512,
+//    void* ClockwiseAddress = TFITRotate(ImageAddress, 256, 512, (256*4),
 //                                        TFITRotationDir_Clockwise);
 //    // This call rotates the 256x512 image at ImageAddress clockwise.
 //    // The dimensions of the rotated image will always be the reverse of the
@@ -27,7 +27,9 @@
 // INTERNALS
 //    
 //    All raster data passed to this library must contain four components and
-//    be RGBA ordered.
+//    be RGBA ordered. Pitch refers to the number of bytes between rows of 
+//    pixel data in an image. This is oftentimes width*4(bytes per pixel), but
+//    not always.
 // 
 //    Allocations are made using the TFIT_MALLOC macro, which defaults to
 //    malloc(). You can, however, #define this macro to use your own allocation
@@ -52,7 +54,7 @@
 #define TF_IMAGE_TRANSFORM_H
 
 #include <math.h> // powf, roundf
-#include <stdint.h>
+#include <stdint.h> // uint32_t, uintptr_t
 
 typedef unsigned char tfit_u8;
 typedef uint32_t tfit_u32;
@@ -81,29 +83,29 @@ typedef struct tfit_v4
     tfit_f32 x, y, z, w;
 } tfit_v4;
 
-#define TFIT_GET_BITMAP_PTR(Bitmap, MinX, MinY) ((tfit_u8*)(&(Bitmap))->Address + ((MinX)*4) + ((MinY)*(Bitmap).Pitch))
+#define TFIT_GET_BITMAP_PTR(Bitmap, X, Y) ((tfit_u8*)(Bitmap).Address + ((X)*sizeof(tfit_u32)) + ((Y)*(Bitmap).Pitch))
 typedef struct tfit_bitmap
 {
     void* Address;
     int Width;
     int Height;
-    int Pitch;
+    tfit_umm Pitch;
 } tfit_bitmap;
 
-#define TFIT_SAMPLE_BITMAP(Name) tfit_u32 Name(tfit_bitmap Bitmap, tfit_f32 U, tfit_f32 V)
-typedef TFIT_SAMPLE_BITMAP(tfit_sample_bitmap);
-
 static tfit_bitmap
-TFIT_MakeBitmap(void* Address, int Width, int Height)
+TFIT_MakeBitmap(void* Address, int Width, int Height, tfit_umm Pitch)
 {
     tfit_bitmap Result;
     Result.Address = Address;
     Result.Width = Width;
     Result.Height = Height;
-    Result.Pitch = (int)(Width*sizeof(tfit_u32));
+    Result.Pitch = Pitch;
     
     return(Result);
 }
+
+#define TFIT_SAMPLE_BITMAP(Name) tfit_u32 Name(tfit_bitmap Bitmap, tfit_f32 U, tfit_f32 V)
+typedef TFIT_SAMPLE_BITMAP(tfit_sample_bitmap);
 
 // 
 // Memory management
@@ -562,8 +564,7 @@ static TFIT_SAMPLE_BITMAP(TFIT_SampleBitmapBicubic)
 // 
 
 static void*
-TFITResize(void* SourceAddress,
-           int SourceWidth, int SourceHeight,
+TFITResize(void* SourceAddress, int SourceWidth, int SourceHeight, tfit_umm SourcePitch,
            int ResizedWidth, int ResizedHeight,
            tfit_filter_type FilterType)
 {
@@ -596,16 +597,17 @@ TFITResize(void* SourceAddress,
         } break;
     }
     
-    tfit_bitmap SourceBitmap = TFIT_MakeBitmap(SourceAddress, SourceWidth, SourceHeight);
+    tfit_bitmap SourceBitmap =
+        TFIT_MakeBitmap(SourceAddress, SourceWidth, SourceHeight, SourcePitch);
     void* Result = TFIT_Allocate(sizeof(tfit_u32)*ResizedWidth*ResizedHeight);
     if(Result)
     {
-        tfit_u32* DestRow = (tfit_u32*)Result;
+        tfit_u8* DestRow = (tfit_u8*)Result;
         for(int Y = MinY;
             Y < MaxY;
             Y++)
         {
-            tfit_u32* DestTexelPtr = DestRow;
+            tfit_u32* DestTexelPtr = (tfit_u32*)DestRow;
             for(int X = MinX;
                 X < MaxX;
                 X++)
@@ -617,7 +619,7 @@ TFITResize(void* SourceAddress,
                 *DestTexelPtr++ = Sample;
             }
             
-            DestRow += ResizedWidth;
+            DestRow += (sizeof(tfit_u32)*ResizedWidth);
         }
     }
     
@@ -625,8 +627,7 @@ TFITResize(void* SourceAddress,
 }
 
 static void*
-TFITRotate(void* SourceAddress,
-           int SourceWidth, int SourceHeight,
+TFITRotate(void* SourceAddress, int SourceWidth, int SourceHeight, tfit_umm SourcePitch,
            tfit_rotation_direction Direction)
 {
     int MinX = 0;
@@ -634,7 +635,8 @@ TFITRotate(void* SourceAddress,
     int MaxX = SourceHeight;
     int MaxY = SourceWidth;
     
-    tfit_bitmap SourceBitmap = TFIT_MakeBitmap(SourceAddress, SourceWidth, SourceHeight);
+    tfit_bitmap SourceBitmap =
+        TFIT_MakeBitmap(SourceAddress, SourceWidth, SourceHeight, SourcePitch);
     
     void* Result = TFIT_Allocate(sizeof(tfit_u32)*SourceWidth*SourceHeight);
     if(Result)
