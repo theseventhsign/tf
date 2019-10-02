@@ -18,24 +18,25 @@
 //    // the range [0.0f, 1.0f].
 //    // The result can be found in the out parameters OutR, OutG, OutB.
 // 
-//    unsigned int Triplet;
+//    unsigned int OutTriplet;
 //    TFCSInterpolateTriplet(0xFF0000, 0.5f, 0x0000FF,
 //                           TFCSColorSpace_HSV,
-//                           &Triplet);
+//                           &OutTriplet);
 //    // This call also interpolates halfway between red and blue in HSV.
 //    // Colors for the call are represented with RGB triplets.
-//    // The result can be found in the out parameter Triplet.
+//    // The result can be found in the out parameter OutTriplet.
 // 
 // COLOR SPACES
 // 
-//    The set of supported color spaces are defined in tfcs_color_space below.
+//    The set of supported color spaces are defined in the enum
+//    "tfcs_color_space" below.
 // 
 //    Some color spaces (HSL, HSV, and CIELCh) use hue, which represents the
-//    azimuth along what is effectively a color wheel. As a result, there are
+//    azimuth around what is effectively a color wheel. As a result, there are
 //    two paths along which hue can be interpolated: a short one and a long
 //    one. This library interpolates along the short path by default, but the
-//    long path can be used instead by choosing the "reverse" flavors of these
-//    color spaces.
+//    long path can be used instead by choosing the "reverse" flavors of the
+//    color space enums.
 // 
 // LICENSE
 // 
@@ -46,7 +47,7 @@
 #ifndef TF_COLOR_SPACE_H
 #define TF_COLOR_SPACE_H
 
-#include <math.h> // NOTE: atan2f, cbrtf, floorf, powf, sqrtf
+#include <math.h> // atan2f, cbrtf, floorf, powf, sqrtf
 
 #define TFCS_PI32 3.14159265359f
 
@@ -90,7 +91,7 @@ typedef union tfcs_v3
     struct
     {
         tfcs_f32 x, y, z;
-    } c; // NOTE: "Channels", "components", etc.
+    } c; // "Channels", "components"
 } tfcs_v3;
 
 typedef struct tfcs_m3x3
@@ -112,7 +113,7 @@ TFCS_V3(tfcs_f32 X, tfcs_f32 Y, tfcs_f32 Z)
 }
 
 //
-// NOTE: Scalar operations
+// Scalar operations
 //
 
 static tfcs_f32
@@ -262,7 +263,7 @@ TFCS_SquareRoot(tfcs_f32 A)
 }
 
 //
-// NOTE: v3 operations
+// v3 operations
 //
 
 static tfcs_f32
@@ -275,19 +276,18 @@ TFCS_Dot(tfcs_v3 A, tfcs_v3 B)
 }
 
 static tfcs_v3
-TFCS_UnpackTriplet(tfcs_u32 Triplet)
+TFCS_LerpV3(tfcs_v3 A, tfcs_f32 t, tfcs_v3 B)
 {
-	tfcs_f32 Inv255 = (1.0f / 255.0f);
 	tfcs_v3 Result;
-	Result.c.x = (((Triplet >> 16) & 0xFF)*Inv255);
-	Result.c.y = (((Triplet >> 8) & 0xFF)*Inv255);
-	Result.c.z = (((Triplet >> 0) & 0xFF)*Inv255);
+	Result.c.x = TFCS_Lerp(A.c.x, t, B.c.x);
+	Result.c.y = TFCS_Lerp(A.c.y, t, B.c.y);
+	Result.c.z = TFCS_Lerp(A.c.z, t, B.c.z);
     
 	return(Result);
 }
 
 static tfcs_u32
-TFCS_PackV3(tfcs_v3 A)
+TFCS_PackTriplet(tfcs_v3 A)
 {
     tfcs_u32 Result = ((TFCS_RoundToU32(A.c.x*255.0f) << 16) |
                        (TFCS_RoundToU32(A.c.y*255.0f) << 8) |
@@ -296,12 +296,13 @@ TFCS_PackV3(tfcs_v3 A)
 }
 
 static tfcs_v3
-TFCS_LerpV3(tfcs_v3 A, tfcs_f32 t, tfcs_v3 B)
+TFCS_UnpackTriplet(tfcs_u32 Triplet)
 {
+	tfcs_f32 Inv255 = (1.0f / 255.0f);
 	tfcs_v3 Result;
-	Result.c.x = TFCS_Lerp(A.c.x, t, B.c.x);
-	Result.c.y = TFCS_Lerp(A.c.y, t, B.c.y);
-	Result.c.z = TFCS_Lerp(A.c.z, t, B.c.z);
+	Result.c.x = (((Triplet >> 16) & 0xFF)*Inv255);
+	Result.c.y = (((Triplet >> 8) & 0xFF)*Inv255);
+	Result.c.z = (((Triplet >> 0) & 0xFF)*Inv255);
     
 	return(Result);
 }
@@ -389,7 +390,7 @@ TFCS_LongestArcDistance(tfcs_v3 A, tfcs_v3 B, int EIndex)
 }
 
 //
-// NOTE: m3x3 operations
+// m3x3 operations
 //
 
 static tfcs_v3
@@ -404,10 +405,10 @@ TFCS_MultiplyM3X3(tfcs_m3x3 A, tfcs_v3 V)
 }
 
 //
-// NOTE: Color space operations
+// Color space operations
 // 
 
-// NOTE: White point coords for Illuminant D65
+// White point coords for Illuminant D65
 #define TFCS_Xn 0.950470f
 #define TFCS_Yn 1.0f
 #define TFCS_Zn 1.088830f
@@ -457,7 +458,7 @@ TFCS_sRGBToHSL(tfcs_v3 A)
     tfcs_f32 MinChannel = TFCS_MinElement(A);
     tfcs_f32 Range = (MaxChannel - MinChannel);
     
-    // NOTE: Hue
+    // Hue
     
     if(MaxChannel == MinChannel)
     {
@@ -480,13 +481,13 @@ TFCS_sRGBToHSL(tfcs_v3 A)
         Result.c.x += 360.0f;
     }
     
-    // NOTE: Lightness
+    // Lightness
     
     tfcs_f32 Lightness = ((MaxChannel + MinChannel)*0.5f); 
     
     Result.c.z = Lightness;
     
-    // NOTE: Saturation
+    // Saturation
     
     if(MaxChannel == 0.0f)
     {
@@ -588,7 +589,7 @@ TFCS_sRGBToHSV(tfcs_v3 A)
     tfcs_f32 MinChannel = TFCS_MinElement(A);
     tfcs_f32 Range = (MaxChannel - MinChannel);
     
-    // NOTE: Hue
+    // Hue
     
     if(MaxChannel == MinChannel)
     {
@@ -611,7 +612,7 @@ TFCS_sRGBToHSV(tfcs_v3 A)
         Result.c.x += 360.0f;
     }
     
-    // NOTE: Saturation
+    // Saturation
     
     if(MaxChannel == 0.0f)
     {
@@ -622,7 +623,7 @@ TFCS_sRGBToHSV(tfcs_v3 A)
         Result.c.y = (Range / MaxChannel);
     }
     
-    // NOTE: Value
+    // Value
     
     Result.c.z = MaxChannel;
     
@@ -782,7 +783,7 @@ TFCS_CIELABToCIEXYZ(tfcs_v3 A)
 }
 
 static tfcs_v3
-CIELABToCIELCh(tfcs_v3 A)
+TFCS_CIELABToCIELCh(tfcs_v3 A)
 {
     tfcs_v3 Result;
     Result.c.x = A.c.x;
@@ -928,8 +929,8 @@ TFCS_InterpolateV3(tfcs_v3 A, tfcs_f32 t, tfcs_v3 B, tfcs_color_space ColorSpace
             B = LinearToCIEXYZ(B);
             A = CIEXYZToCIELAB(A);
             B = CIEXYZToCIELAB(B);
-            A = CIELABToCIELCh(A);
-            B = CIELABToCIELCh(B);
+            A = TFCS_CIELABToCIELCh(A);
+            B = TFCS_CIELABToCIELCh(B);
             
             tfcs_v3 ResultCIELCh;
             ResultCIELCh.c.x = TFCS_Lerp(A.c.x, t, B.c.x);
@@ -951,8 +952,8 @@ TFCS_InterpolateV3(tfcs_v3 A, tfcs_f32 t, tfcs_v3 B, tfcs_color_space ColorSpace
             B = LinearToCIEXYZ(B);
             A = CIEXYZToCIELAB(A);
             B = CIEXYZToCIELAB(B);
-            A = CIELABToCIELCh(A);
-            B = CIELABToCIELCh(B);
+            A = TFCS_CIELABToCIELCh(A);
+            B = TFCS_CIELABToCIELCh(B);
             
             tfcs_v3 ResultCIELCh;
             ResultCIELCh.c.x = TFCS_Lerp(A.c.x, t, B.c.x);
@@ -976,7 +977,7 @@ TFCS_InterpolateV3(tfcs_v3 A, tfcs_f32 t, tfcs_v3 B, tfcs_color_space ColorSpace
 }
 
 //
-// NOTE: User-facing API
+// User-facing API
 //
 
 static void
@@ -1010,7 +1011,7 @@ TFCSInterpolateTriplet(tfcs_u32 TripletA, tfcs_f32 t, tfcs_u32 TripletB,
     
     tfcs_v3 ResultV3 = TFCS_InterpolateV3(A, t, B, ColorSpace);
     
-    *OutTriplet = TFCS_PackV3(ResultV3);
+    *OutTriplet = TFCS_PackTriplet(ResultV3);
 }
 
 #endif

@@ -51,7 +51,7 @@
 #ifndef TF_IMAGE_TRANSFORM_H
 #define TF_IMAGE_TRANSFORM_H
 
-#include <math.h> // NOTE: powf, roundf
+#include <math.h> // powf, roundf
 #include <stdint.h>
 
 typedef unsigned char tfit_u8;
@@ -106,7 +106,7 @@ TFIT_MakeBitmap(void* Address, int Width, int Height)
 }
 
 // 
-// NOTE: Memory management
+// Memory management
 // 
 
 #ifndef TFIT_MALLOC
@@ -132,7 +132,7 @@ TFIT_Free(void* Address)
 }
 
 // 
-// NOTE: Scalar operations
+// Scalar operations
 // 
 
 static tfit_f32 TFIT_Cube(tfit_f32 A);
@@ -278,7 +278,7 @@ TFIT_LinearTosRGB(tfit_f32 A)
 }
 
 // 
-// NOTE: v4 operations
+// v4 operations
 // 
 
 static tfit_v4
@@ -353,7 +353,7 @@ TFIT_PackRGBA(tfit_v4 A)
 }
 
 // 
-// NOTE: Samplers
+// Samplers
 // 
 
 static TFIT_SAMPLE_BITMAP(TFIT_SampleBitmapNearestNeighbor)
@@ -389,7 +389,7 @@ static TFIT_SAMPLE_BITMAP(TFIT_SampleBitmapBilinear)
     int TexelDX = (SampleX + 1);
     int TexelDY = (SampleY + 1);
     
-    // NOTE: Repeating edge texels out to infinity
+    // Repeating edge texels out to infinity
     if(SampleX == (Bitmap.Width - 1))
     {
         TexelBX = SampleX;
@@ -401,25 +401,25 @@ static TFIT_SAMPLE_BITMAP(TFIT_SampleBitmapBilinear)
         TexelDY = SampleY;
     }
     
-    // NOTE: TexelA
+    // TexelA
     
     tfit_u32 TexelA = *(tfit_u32*)TFIT_GET_BITMAP_PTR(Bitmap, TexelAX, TexelAY);
     tfit_v4 vTexelA = TFIT_UnpackRGBA(TexelA);
     vTexelA = TFIT_sRGBToLinearV4(vTexelA);
     
-    // NOTE: TexelB
+    // TexelB
     
     tfit_u32 TexelB = *(tfit_u32*)TFIT_GET_BITMAP_PTR(Bitmap, TexelBX, TexelBY);
     tfit_v4 vTexelB = TFIT_UnpackRGBA(TexelB);
     vTexelB = TFIT_sRGBToLinearV4(vTexelB);
     
-    // NOTE: TexelC
+    // TexelC
     
     tfit_u32 TexelC = *(tfit_u32*)TFIT_GET_BITMAP_PTR(Bitmap, TexelCX, TexelCY);
     tfit_v4 vTexelC = TFIT_UnpackRGBA(TexelC);
     vTexelC = TFIT_sRGBToLinearV4(vTexelC);
     
-    // NOTE: TexelD
+    // TexelD
     
     tfit_u32 TexelD = *(tfit_u32*)TFIT_GET_BITMAP_PTR(Bitmap, TexelDX, TexelDY);
     tfit_v4 vTexelD = TFIT_UnpackRGBA(TexelD);
@@ -467,7 +467,7 @@ static TFIT_SAMPLE_BITMAP(TFIT_SampleBitmapBicubic)
     TexelYC = TFIT_Clampi(0, TexelYC, (Bitmap.Height - 1));
     TexelYD = TFIT_Clampi(0, TexelYD, (Bitmap.Height - 1));
     
-    // NOTE: A
+    // A
     
     tfit_u32 FPrime0A = *(tfit_u32*)TFIT_GET_BITMAP_PTR(Bitmap, FPrime0X, TexelYA);
     tfit_u32 F0A = *(tfit_u32*)TFIT_GET_BITMAP_PTR(Bitmap, F0X, TexelYA);
@@ -487,7 +487,7 @@ static TFIT_SAMPLE_BITMAP(TFIT_SampleBitmapBicubic)
     tfit_v4 vBlendedA = TFIT_CatmullRomInterpolateV4(vFPrime0A, vF0A, vF1A, vFPrime1A,
                                                      fSampleX);
     
-    // NOTE: B
+    // B
     
     tfit_u32 FPrime0B = *(tfit_u32*)TFIT_GET_BITMAP_PTR(Bitmap, FPrime0X, TexelYB);
     tfit_u32 F0B = *(tfit_u32*)TFIT_GET_BITMAP_PTR(Bitmap, F0X, TexelYB);
@@ -507,7 +507,7 @@ static TFIT_SAMPLE_BITMAP(TFIT_SampleBitmapBicubic)
     tfit_v4 vBlendedB = TFIT_CatmullRomInterpolateV4(vFPrime0B, vF0B, vF1B, vFPrime1B,
                                                      fSampleX);
     
-    // NOTE: C
+    // C
     
     tfit_u32 FPrime0C = *(tfit_u32*)TFIT_GET_BITMAP_PTR(Bitmap, FPrime0X, TexelYC);
     tfit_u32 F0C = *(tfit_u32*)TFIT_GET_BITMAP_PTR(Bitmap, F0X, TexelYC);
@@ -527,7 +527,7 @@ static TFIT_SAMPLE_BITMAP(TFIT_SampleBitmapBicubic)
     tfit_v4 vBlendedC = TFIT_CatmullRomInterpolateV4(vFPrime0C, vF0C, vF1C, vFPrime1C,
                                                      fSampleX);
     
-    // NOTE: D
+    // D
     
     tfit_u32 FPrime0D = *(tfit_u32*)TFIT_GET_BITMAP_PTR(Bitmap, FPrime0X, TexelYD);
     tfit_u32 F0D = *(tfit_u32*)TFIT_GET_BITMAP_PTR(Bitmap, F0X, TexelYD);
@@ -558,7 +558,7 @@ static TFIT_SAMPLE_BITMAP(TFIT_SampleBitmapBicubic)
 }
 
 // 
-// NOTE: User-facing API
+// User-facing API
 // 
 
 static void*

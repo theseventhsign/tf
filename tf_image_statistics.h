@@ -1,6 +1,6 @@
 // ============================================================================
 //  
-//    tf_image_statistics v0.1a - Image stats by @twelvefifteen on GitHub
+//    tf_image_statistics v0.1b - Image stats by @twelvefifteen on GitHub
 // 
 // USAGE
 // 
@@ -9,7 +9,7 @@
 // 
 //    int HistogramWidth;
 //    int HistogramHeight;
-//    void* Histogram = TFISHistogram(ImageAddress, 256, 512,
+//    void* Histogram = TFISHistogram(ImageAddress, 256, 512, (256*4),
 //                                    &HistogramWidth, &HistogramHeight);
 //    // This call returns a histogram for the 256x512 image contained at 
 //    // ImageAddress.
@@ -19,29 +19,29 @@
 //    // graphing the luminances of each texel.
 //    TFISFree(Histogram);
 // 
-//    float Score = TFISCompare(Image0Address, Image0Width, Image0Height,
-//                              Image1Address, Image1Width, Image1Height);
+//    float Score = TFISCompare(Image0Address, Image0Width, Image0Height, Image0Pitch,
+//                              Image1Address, Image1Width, Image1Height, Image1Pitch);
 //    // This call runs an RMSE comparison on two images, provided their 
 //    // dimensions are equal. The closer to zero the result is, the more alike
 //    // the images are.
 // 
 //    unsigned int OutTriplet;
-//    TFISMeanTriplet(ImageAddress, 256, 512, &OutTriplet);
+//    TFISMeanTriplet(ImageAddress, 256, 512, (256*4), &OutTriplet);
 //    // This call computes the sRGB mean of the 256x512 image contained at
 //    // ImageAddress. The output gets stored stored in OutTriplet as an RGB 
 //    // triplet. If there's ever need for a linear RGB version, I'd be happy
 //    // to implement it.
 //    float OutR, OutG, OutB;
-//    TFISMeanTriplet(ImageAddress, 256, 512, &OutR, &OutG, &OutB);
+//    TFISMeanTriplet(ImageAddress, 256, 512, (256*4), &OutR, &OutG, &OutB);
 //    // This call also computes the sRGB mean of an image, but outputs the
 //    // results as a set of floats, one for each component. These floats are
 //    // on the range of [0.0f, 1.0f].
 // 
 //    unsigned int OutTriplet;
-//    TFISModeTriplet(ImageAddress, 256, 512, 0.05f, &OutTriplet);
+//    TFISModeTriplet(ImageAddress, 256, 512, (256*4), 0.05f, &OutTriplet);
 //    // This call computes the mode of the 256x512 image at ImageAddress and
 //    // outputs it to OutTriplet as an RGB triplet. The "0.05f" refers to the
-//    // percent of the source image that gets sampled, as things can get slow
+//    // percent of the source image that gets sampled. Things can get slow
 //    // without this optimization. Similarly, sampled texels have their bottom
 //    // two bits masked to provide more reasonable results.
 //    // Like the mean function, there's also a floating-point version of this
@@ -50,7 +50,9 @@
 // INTERNALS
 // 
 //    All raster data passed to this library must contain four components and
-//    be RGBA ordered.
+//    be RGBA ordered. Pitch refers to the number of bytes between one row of
+//    an image to the next. This is oftentimes width*4(bytes per pixel), but
+//    not always.
 // 
 //    Allocations are made using the TFIS_MALLOC macro, which defaults to
 //    malloc(). You can, however, #define this macro to use your own allocation
@@ -85,8 +87,9 @@ typedef float tfis_f32;
 
 #define TFIS_ARRAY_COUNT(Array) (sizeof((Array)) / sizeof((Array)[0]))
 
-#define TFIS_BOTTOM_UP_PTR(Address, Width, Height, X, Y) \
-((tfis_u32*)(Address) + (X) + ((Width)*(((Height) - 1) - (Y))))
+#define TFIS_BITMAP_PTR(Address, Pitch, X, Y) ((tfis_u8*)(Address) + (sizeof(tfis_u32)*(X)) + ((Pitch)*(Y)))
+// This is a bottom up version of the macro above
+#define TFIS_BITMAP_PTR_BU(Address, Height, Pitch, X, Y) ((tfis_u8*)(Address) + (sizeof(tfis_u32)*(X)) + ((Pitch)*((Height) - 1 - (Y))))
 
 typedef struct tfis_v3
 {
@@ -111,7 +114,7 @@ typedef struct tfis_counted_color
 } tfis_counted_color;
 typedef struct tfis_color_table
 {
-	tfis_counted_color* Hash[1024];
+	tfis_counted_color* Hash[512];
 } tfis_color_table;
 
 static tfis_v3
@@ -138,7 +141,7 @@ TFIS_V4(tfis_f32 X, tfis_f32 Y, tfis_f32 Z, tfis_f32 W)
 }
 
 // 
-// NOTE: Memory operations
+// Memory operations
 // 
 
 #ifndef TFIS_MALLOC
@@ -187,7 +190,7 @@ TFIS_ZeroSize_(void* Ptr, tfis_umm Size)
 }
 
 // 
-// NOTE: RNG
+// RNG
 // 
 
 static tfis_random_series
@@ -208,8 +211,6 @@ TFIS_SeedSeries(tfis_u32 Seed)
 static tfis_u32
 TFIS_GetRandom(tfis_random_series* Series)
 {
-    // NOTE: Xorshift implementation from en.wikipedia.org/wiki/Xorshift
-    
     tfis_u32 Result = Series->State;
     Result ^= (Result << 13);
 	Result ^= (Result >> 17);
@@ -223,8 +224,7 @@ TFIS_GetRandom(tfis_random_series* Series)
 static tfis_u32
 TFIS_RandomU32Between(tfis_random_series* Series, tfis_u32 Min, tfis_u32 Max)
 {
-    // NOTE: This function is inclusive of both Min and Max
-    
+    // This function is inclusive of both Min and Max
     tfis_u32 Range = (Max - Min);
     tfis_u32 Random = TFIS_GetRandom(Series);
     tfis_u32 Result = (Min + (Random % Range));
@@ -233,7 +233,7 @@ TFIS_RandomU32Between(tfis_random_series* Series, tfis_u32 Min, tfis_u32 Max)
 }
 
 // 
-// NOTE: Scalar operations
+// Scalar operations
 // 
 
 static tfis_f32
@@ -355,7 +355,7 @@ TFIS_LinearTosRGB(tfis_f32 A)
 }
 
 // 
-// NOTE: v3 operations
+// v3 operations
 // 
 
 static tfis_f32
@@ -364,6 +364,15 @@ TFIS_DotV3(tfis_v3 A, tfis_v3 B)
     tfis_f32 Result = ((A.x*B.x) +
                        (A.y*B.y) +
                        (A.z*B.z));
+    return(Result);
+}
+
+static tfis_u32
+TFIS_PackTriplet(tfis_v3 A)
+{
+    tfis_u32 Result = ((TFIS_RoundToU32(A.x*255.0f) << 16) |
+                       (TFIS_RoundToU32(A.y*255.0f) << 8) |
+                       (TFIS_RoundToU32(A.z*255.0f) << 0));
     return(Result);
 }
 
@@ -379,17 +388,8 @@ TFIS_UnpackTriplet(tfis_u32 C)
     return(Result);
 }
 
-static tfis_u32
-TFIS_PackTriplet(tfis_v3 A)
-{
-    tfis_u32 Result = ((TFIS_RoundToU32(A.x*255.0f) << 16) |
-                       (TFIS_RoundToU32(A.y*255.0f) << 8) |
-                       (TFIS_RoundToU32(A.z*255.0f) << 0));
-    return(Result);
-}
-
 // 
-// NOTE: v4 operations
+// v4 operations
 // 
 
 static tfis_v4
@@ -401,6 +401,16 @@ TFIS_sRGBToLinearV4(tfis_v4 A)
     Result.z = TFIS_sRGBToLinear(A.z);
     Result.w = TFIS_Clamp01(A.w);
     
+    return(Result);
+}
+
+static tfis_u32
+TFIS_PackRGBA(tfis_v4 A)
+{
+    tfis_u32 Result = ((TFIS_RoundToU32(A.x*255.0f) << 0) |
+                       (TFIS_RoundToU32(A.y*255.0f) << 8) |
+                       (TFIS_RoundToU32(A.z*255.0f) << 16) |
+                       (TFIS_RoundToU32(A.w*255.0f) << 24));
     return(Result);
 }
 
@@ -417,32 +427,22 @@ TFIS_UnpackRGBA(tfis_u32 C)
     return(Result);
 }
 
-static tfis_u32
-TFIS_PackRGBA(tfis_v4 A)
-{
-    tfis_u32 Result = ((TFIS_RoundToU32(A.x*255.0f) << 0) |
-                       (TFIS_RoundToU32(A.y*255.0f) << 8) |
-                       (TFIS_RoundToU32(A.z*255.0f) << 16) |
-                       (TFIS_RoundToU32(A.w*255.0f) << 24));
-    return(Result);
-}
-
 // 
-// NOTE: Image operations
+// Image operations
 // 
 
 static tfis_v3
-TFIS_ComputeMeanV3(void* Address, int Width, int Height)
+TFIS_ComputeMeanV3(void* Address, int Width, int Height, tfis_umm Pitch)
 {
     int TexelCount = 0;
     tfis_v3 Accumulator = { 0 };
     
-    tfis_u32* Row = (tfis_u32*)Address;
+    tfis_u8* Row = (tfis_u8*)Address;
     for(int Y = 0;
         Y < Height;
         Y++)
     {
-        tfis_u32* TexelPtr = Row;
+        tfis_u32* TexelPtr = (tfis_u32*)Row;
         for(int X = 0;
             X < Width;
             X++)
@@ -457,7 +457,7 @@ TFIS_ComputeMeanV3(void* Address, int Width, int Height)
             TexelPtr++;
         }
         
-        Row += Width;
+        Row += Pitch;
     }
     
     tfis_f32 InvTexelCount = TFIS_SafeRatio0(1.0f, (tfis_f32)TexelCount);
@@ -513,7 +513,8 @@ TFIS_IncrementCount(tfis_color_table* Table, tfis_u32 Color)
 }
 
 static tfis_u32
-TFIS_ComputeModeTriplet(void* Address, int Width, int Height, tfis_f32 SamplePercent)
+TFIS_ComputeModeTriplet(void* Address, int Width, int Height, tfis_umm Pitch,
+                        tfis_f32 SamplePercent)
 {
     tfis_u32 Result = 0x000000;
     
@@ -534,7 +535,7 @@ TFIS_ComputeModeTriplet(void* Address, int Width, int Height, tfis_f32 SamplePer
             tfis_u32 SampleX = TFIS_RandomU32Between(&Series, 0, (tfis_u32)(Width - 1));
             tfis_u32 SampleY = TFIS_RandomU32Between(&Series, 0, (tfis_u32)(Height - 1));
             
-            tfis_u32 Sample = *TFIS_BOTTOM_UP_PTR(Address, Width, Height, SampleX, SampleY);
+            tfis_u32 Sample = *(tfis_u32*)TFIS_BITMAP_PTR_BU(Address, Height, Pitch, SampleX, SampleY);
             Sample &= SampleMask;
             
             TFIS_IncrementCount(Table, Sample);
@@ -558,7 +559,7 @@ TFIS_ComputeModeTriplet(void* Address, int Width, int Height, tfis_f32 SamplePer
             }
         }
         
-        // NOTE: Repacking mode from RGBA to triplet
+        // Repacking mode from RGBA to triplet
         Result = ((((Mode >> 0) & 0xFF) << 16) |
                   (((Mode >> 8) & 0xFF) << 8) |
                   (((Mode >> 16) & 0xFF) << 0));
@@ -581,14 +582,14 @@ TFIS_ComputeModeTriplet(void* Address, int Width, int Height, tfis_f32 SamplePer
 }
 
 static void
-TFIS_FillBitmap(void* Address, int Width, int Height, tfis_u32 C)
+TFIS_FillBitmap(void* Address, int Width, int Height, tfis_umm Pitch, tfis_u32 C)
 {
-    tfis_u32* Row = (tfis_u32*)Address;
+    tfis_u8* Row = (tfis_u8*)Address;
     for(int Y = 0;
         Y < Height;
         Y++)
     {
-        tfis_u32* TexelPtr = Row;
+        tfis_u32* TexelPtr = (tfis_u32*)Row;
         for(int X = 0;
             X < Width;
             X++)
@@ -596,21 +597,21 @@ TFIS_FillBitmap(void* Address, int Width, int Height, tfis_u32 C)
             *TexelPtr++ = C;
         }
         
-        Row += Width;
+        Row += Pitch;
     }
 }
 
 static void
-TFIS_Grayscale(void* Address, int Width, int Height)
+TFIS_Grayscale(void* Address, int Width, int Height, tfis_umm Pitch)
 {
     tfis_v3 Weights = TFIS_V3(0.212656f, 0.715158f, 0.072186f);
     
-    tfis_u32* Row = (tfis_u32*)Address;
+    tfis_u8* Row = (tfis_u8*)Address;
     for(int Y = 0;
         Y < Height;
         Y++)
     {
-        tfis_u32* TexelPtr = Row;
+        tfis_u32* TexelPtr = (tfis_u32*)Row;
         for(int X = 0;
             X < Width;
             X++)
@@ -628,31 +629,32 @@ TFIS_Grayscale(void* Address, int Width, int Height)
             *TexelPtr++ = GrayTexel255;
         }
         
-        Row += Width;
+        Row += Pitch;
     }
 }
 
 // 
-// NOTE: User-facing API
+// User-facing API
 // 
 
 static void*
-TFISBrightnessHistogram(void* SourceAddress, int SourceWidth, int SourceHeight,
+TFISBrightnessHistogram(void* SourceAddress,
+                        int SourceWidth, int SourceHeight, tfis_umm SourcePitch,
                         int* ResultWidth, int* ResultHeight)
 {
     int LuminanceBuckets[256];
     TFIS_ZERO_ARRAY(&LuminanceBuckets, TFIS_ARRAY_COUNT(LuminanceBuckets), int);
     
-    tfis_umm SourceSize = (sizeof(tfis_u32)*SourceWidth*SourceHeight);
+    tfis_umm SourceSize = (SourcePitch*SourceHeight);
     void* GrayAddress = TFIS_Allocate(SourceSize);
     TFIS_CopyMemory(GrayAddress, SourceAddress, SourceSize);
-    TFIS_Grayscale(GrayAddress, SourceWidth, SourceHeight);
-    tfis_u32* Row = (tfis_u32*)GrayAddress;
+    TFIS_Grayscale(GrayAddress, SourceWidth, SourceHeight, SourcePitch);
+    tfis_u8* Row = (tfis_u8*)GrayAddress;
     for(int Y = 0;
         Y < SourceHeight;
         Y++)
     {
-        tfis_u32* TexelPtr = Row;
+        tfis_u32* TexelPtr = (tfis_u32*)Row;
         for(int X = 0;
             X < SourceWidth;
             X++)
@@ -665,7 +667,7 @@ TFISBrightnessHistogram(void* SourceAddress, int SourceWidth, int SourceHeight,
             TexelPtr++;
         }
         
-        Row += SourceWidth;
+        Row += SourcePitch;
     }
     TFIS_Free(GrayAddress);
     
@@ -673,9 +675,10 @@ TFISBrightnessHistogram(void* SourceAddress, int SourceWidth, int SourceHeight,
     if(ResultWidth) {*ResultWidth = HistogramWidth;}
     int HistogramHeight = 200;
     if(ResultHeight) {*ResultHeight = HistogramHeight;}
+    tfis_umm HistogramPitch = (sizeof(tfis_u32)*HistogramWidth);
     
     void* Result = TFIS_Allocate(sizeof(tfis_u32)*HistogramWidth*HistogramHeight);
-    TFIS_FillBitmap(Result, HistogramWidth, HistogramHeight, 0xFF000000);
+    TFIS_FillBitmap(Result, HistogramWidth, HistogramHeight, HistogramPitch, 0xFF000000);
     
     int MaxBucketEntries = 0;
     for(int EntryIndex = 0;
@@ -699,7 +702,7 @@ TFISBrightnessHistogram(void* SourceAddress, int SourceWidth, int SourceHeight,
             Y < PixelCount;
             Y++)
         {
-            *TFIS_BOTTOM_UP_PTR(Result, HistogramWidth, HistogramHeight, X, Y) = 0xFFFFFFFF;
+            *(tfis_u32*)TFIS_BITMAP_PTR_BU(Result, HistogramHeight, HistogramPitch, X, Y) = 0xFFFFFFFF;
         }
     }
     
@@ -707,8 +710,8 @@ TFISBrightnessHistogram(void* SourceAddress, int SourceWidth, int SourceHeight,
 }
 
 static tfis_f32
-TFISCompare(void* AAddress, int AWidth, int AHeight,
-            void* BAddress, int BWidth, int BHeight)
+TFISCompare(void* AAddress, int AWidth, int AHeight, tfis_umm APitch,
+            void* BAddress, int BWidth, int BHeight, tfis_umm BPitch)
 {
     tfis_f32 Result = 1.0f;
     
@@ -717,14 +720,14 @@ TFISCompare(void* AAddress, int AWidth, int AHeight,
     {
         tfis_f32 SquaredError = 0.0f;
         
-        tfis_u32* ARow = (tfis_u32*)AAddress;
-        tfis_u32* BRow = (tfis_u32*)BAddress;
+        tfis_u8* ARow = (tfis_u8*)AAddress;
+        tfis_u8* BRow = (tfis_u8*)BAddress;
         for(int Y = 0;
             Y < AHeight;
             Y++)
         {
-            tfis_u32* ATexelPtr = ARow;
-            tfis_u32* BTexelPtr = BRow;
+            tfis_u32* ATexelPtr = (tfis_u32*)ARow;
+            tfis_u32* BTexelPtr = (tfis_u32*)BRow;
             for(int X = 0;
                 X < AWidth;
                 X++)
@@ -737,10 +740,10 @@ TFISCompare(void* AAddress, int AWidth, int AHeight,
                 tfis_v4 BTexelV4 = TFIS_UnpackRGBA(BTexel);
                 BTexelV4 = TFIS_sRGBToLinearV4(BTexelV4);
                 
-                tfis_f32 SquareDiffr = TFIS_Square((ATexelV4.x - BTexelV4.x)*255.0f);
-                tfis_f32 SquareDiffg = TFIS_Square((ATexelV4.y - BTexelV4.y)*255.0f);
-                tfis_f32 SquareDiffb = TFIS_Square((ATexelV4.z - BTexelV4.z)*255.0f);
-                tfis_f32 SquareDiffa = TFIS_Square((ATexelV4.w - BTexelV4.w)*255.0f);
+                tfis_f32 SquareDiffr = TFIS_Square(ATexelV4.x - BTexelV4.x);
+                tfis_f32 SquareDiffg = TFIS_Square(ATexelV4.y - BTexelV4.y);
+                tfis_f32 SquareDiffb = TFIS_Square(ATexelV4.z - BTexelV4.z);
+                tfis_f32 SquareDiffa = TFIS_Square(ATexelV4.w - BTexelV4.w);
                 
                 SquaredError += SquareDiffr;
                 SquaredError += SquareDiffg;
@@ -751,20 +754,19 @@ TFISCompare(void* AAddress, int AWidth, int AHeight,
                 BTexelPtr++;
             }
             
-            ARow += AWidth;
-            BRow += BWidth;
+            ARow += APitch;
+            BRow += BPitch;
         }
         
         tfis_f32 InvByteCount = (1.0f / (AWidth*AHeight*sizeof(tfis_u32)));
-        tfis_f32 Inv255 = (1.0f / 255.0f);
-        Result = (TFIS_SquareRoot(SquaredError*InvByteCount)*Inv255);
+        Result = TFIS_SquareRoot(SquaredError*InvByteCount);
     }
     
     return(Result);
 }
 
 static void*
-TFISHistogram(void* SourceAddress, int SourceWidth, int SourceHeight,
+TFISHistogram(void* SourceAddress, int SourceWidth, int SourceHeight, tfis_umm SourcePitch,
               int* ResultWidth, int* ResultHeight)
 {
 #define TFIS_BUCKET_CAPACITY 256
@@ -775,12 +777,12 @@ TFISHistogram(void* SourceAddress, int SourceWidth, int SourceHeight,
     TFIS_ZERO_ARRAY(&Bucketsg, TFIS_ARRAY_COUNT(Bucketsg), int);
     TFIS_ZERO_ARRAY(&Bucketsb, TFIS_ARRAY_COUNT(Bucketsb), int);
     
-    tfis_u32* Row = (tfis_u32*)SourceAddress;
+    tfis_u8* Row = (tfis_u8*)SourceAddress;
     for(int Y = 0;
         Y < SourceHeight;
         Y++)
     {
-        tfis_u32* TexelPtr = Row;
+        tfis_u32* TexelPtr = (tfis_u32*)Row;
         for(int X = 0;
             X < SourceWidth;
             X++)
@@ -798,16 +800,17 @@ TFISHistogram(void* SourceAddress, int SourceWidth, int SourceHeight,
             TexelPtr++;
         }
         
-        Row += SourceWidth;
+        Row += SourcePitch;
     }
     
     int HistogramWidth = TFIS_BUCKET_CAPACITY;
     if(ResultWidth) {*ResultWidth = HistogramWidth;}
     int HistogramHeight = 200;
     if(ResultHeight) {*ResultHeight = HistogramHeight;}
+    tfis_umm HistogramPitch = (sizeof(tfis_u32)*HistogramWidth);
     
     void* Result = TFIS_Allocate(sizeof(tfis_u32)*HistogramWidth*HistogramHeight);
-    TFIS_FillBitmap(Result, HistogramWidth, HistogramHeight, 0xFF000000);
+    TFIS_FillBitmap(Result, HistogramWidth, HistogramHeight, HistogramPitch, 0xFF000000);
     
     int MaxBucketEntries = 0;
     for(int EntryIndex = 0;
@@ -842,19 +845,19 @@ TFISHistogram(void* SourceAddress, int SourceWidth, int SourceHeight,
             Y < PixelCountr;
             Y++)
         {
-            *TFIS_BOTTOM_UP_PTR(Result, HistogramWidth, HistogramHeight, X, Y) |= 0xFF0000FF;
+            *(tfis_u32*)TFIS_BITMAP_PTR_BU(Result, HistogramHeight, HistogramPitch, X, Y) |= 0xFF0000FF;
         }
         for(int Y = 0;
             Y < PixelCountg;
             Y++)
         {
-            *TFIS_BOTTOM_UP_PTR(Result, HistogramWidth, HistogramHeight, X, Y) |= 0xFF00FF00;
+            *(tfis_u32*)TFIS_BITMAP_PTR_BU(Result, HistogramHeight, HistogramPitch, X, Y) |= 0xFF00FF00;
         }
         for(int Y = 0;
             Y < PixelCountb;
             Y++)
         {
-            *TFIS_BOTTOM_UP_PTR(Result, HistogramWidth, HistogramHeight, X, Y) |= 0xFFFF0000;
+            *(tfis_u32*)TFIS_BITMAP_PTR_BU(Result, HistogramHeight, HistogramPitch, X, Y) |= 0xFFFF0000;
         }
     }
 #undef TFIS_BUCKET_CAPACITY
@@ -863,30 +866,33 @@ TFISHistogram(void* SourceAddress, int SourceWidth, int SourceHeight,
 }
 
 static void
-TFISMeanFloat(void* SourceAddress, int SourceWidth, int SourceHeight,
+TFISMeanFloat(void* SourceAddress, int SourceWidth, int SourceHeight, tfis_umm SourcePitch,
               tfis_f32* R, tfis_f32* G, tfis_f32* B)
 {
-    tfis_v3 MeanV3 = TFIS_ComputeMeanV3(SourceAddress, SourceWidth, SourceHeight);
+    tfis_v3 MeanV3 = TFIS_ComputeMeanV3(SourceAddress, SourceWidth, SourceHeight,
+                                        SourcePitch);
     *R = MeanV3.x;
     *G = MeanV3.y;
     *B = MeanV3.z;
 }
 
 static void
-TFISMeanTriplet(void* SourceAddress, int SourceWidth, int SourceHeight,
+TFISMeanTriplet(void* SourceAddress, int SourceWidth, int SourceHeight, tfis_umm SourcePitch,
                 tfis_u32* Triplet)
 {
-    tfis_v3 MeanV3 = TFIS_ComputeMeanV3(SourceAddress, SourceWidth, SourceHeight);
+    tfis_v3 MeanV3 = TFIS_ComputeMeanV3(SourceAddress, SourceWidth, SourceHeight,
+                                        SourcePitch);
     tfis_u32 Result = TFIS_PackTriplet(MeanV3);
     *Triplet = Result;
 }
 
 static void
-TFISModeFloat(void* SourceAddress, int SourceWidth, int SourceHeight,
+TFISModeFloat(void* SourceAddress, int SourceWidth, int SourceHeight, tfis_umm SourcePitch,
               tfis_f32 SamplePercent,
               tfis_f32* R, tfis_f32* G, tfis_f32* B)
 {
-    tfis_u32 Mode = TFIS_ComputeModeTriplet(SourceAddress, SourceWidth, SourceHeight,
+    tfis_u32 Mode = TFIS_ComputeModeTriplet(SourceAddress,
+                                            SourceWidth, SourceHeight, SourcePitch,
                                             SamplePercent);
     tfis_v3 ModeV3 = TFIS_UnpackTriplet(Mode);
     *R = ModeV3.x;
@@ -895,11 +901,12 @@ TFISModeFloat(void* SourceAddress, int SourceWidth, int SourceHeight,
 }
 
 static void
-TFISModeTriplet(void* SourceAddress, int SourceWidth, int SourceHeight,
+TFISModeTriplet(void* SourceAddress, int SourceWidth, int SourceHeight, tfis_umm SourcePitch,
                 tfis_f32 SamplePercent,
                 tfis_u32* Triplet)
 {
-    tfis_u32 Mode = TFIS_ComputeModeTriplet(SourceAddress, SourceWidth, SourceHeight,
+    tfis_u32 Mode = TFIS_ComputeModeTriplet(SourceAddress,
+                                            SourceWidth, SourceHeight, SourcePitch,
                                             SamplePercent);
     *Triplet = Mode;
 }
